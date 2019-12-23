@@ -7,16 +7,22 @@ import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
 import java.io.File;
+import java.security.Permission;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -35,141 +41,116 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         permissionManager = new PermissionManager(this);
 
-        askForMultiplePermissions();
+        if (checkAndRequest()) {
+
+            initApp();
+
+        }
+
 
     }
 
 
-    public void askForMultiplePermissions() {
+    String[] appPerm = new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO};
+
+    public static final int PERMISSION_REQUEST_CODE = 201;
 
 
-        permissionManager.checkPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE, new PermissionManager.PermissionAskListener() {
-            @Override
-            public void onNeedPermission() {
+    boolean checkAndRequest() {
 
-                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, REQUEST_STORAGE);
+        List<String> listPermissionNeeded = new ArrayList<>();
 
+        for (String perm : appPerm) {
+            if (ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
+                listPermissionNeeded.add(perm);
             }
+        }
 
-            @Override
-            public void onPermissionPreviouslyDenied() {
-
-            }
-
-            @Override
-            public void onPermissionPreviouslyDeniedWithNeverAskAgain() {
-
-            }
-
-            @Override
-            public void onPermissionGranted() {
+        if (!listPermissionNeeded.isEmpty()) {
 
 
-//                ArrayList<HashMap<String, String>> playList = getPlayList();
+            ActivityCompat.requestPermissions(this, listPermissionNeeded.toArray(new String[listPermissionNeeded.size()]), PERMISSION_REQUEST_CODE);
+            return false;
+        }
 
 
-                Log.d(TAG, "Key here is" + Environment.getExternalStorageDirectory().getAbsolutePath() + "  Valueis ");
+        return true;
+    }
 
-//                for (int i = 0; i < playList.size(); i++) {
-//
-//
-//                    Iterator iterator = playList.get(i).entrySet().iterator();
-//                    while (iterator.hasNext()) {
-//
-//                        Map.Entry mapElement = (Map.Entry) iterator.next();
-//                        String values = ((String) mapElement.getValue());
-//
-//
-//                        Log.d(TAG, "Key here is" + mapElement.getKey() + "  Valueis " + values);
-//
-//                    }
-//
-//
-////                    Log.d(TAG, "play list " + i + " " + playList.get(i).get());
-//                }
-            }
-
-
-//                Log.d(TAG, "Path of the filed is" +)
-
-//                Toast.makeText(getApplicationContext(), "Storage permission granted", Toast.LENGTH_LONG).show();
-
-//            }
-        });
-
-
-        permissionManager.checkPermission(this, Manifest.permission.RECORD_AUDIO, new PermissionManager.PermissionAskListener() {
-            @Override
-            public void onNeedPermission() {
-
-                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_AUDIO);
-            }
-
-            @Override
-            public void onPermissionPreviouslyDenied() {
-
-            }
-
-            @Override
-            public void onPermissionPreviouslyDeniedWithNeverAskAgain() {
-
-            }
-
-            @Override
-            public void onPermissionGranted() {
-
-            }
-        });
-
+    void initApp() {
 
     }
 
     String TAG = MainActivity.class.getSimpleName();
 
-    ArrayList<HashMap<String, String>> getPlayList(String rootPath) {
-
-
-        ArrayList<HashMap<String, String>> fileList = new ArrayList<>();
-
-
-        try {
-            File rootFolder = new File(rootPath);
-            File[] files = rootFolder.listFiles(); //here you will get NPE if directory doesn't contains  any file,handle it like this.
-            for (File file : files) {
-                if (file.isDirectory()) {
-                    if (getPlayList(file.getAbsolutePath()) != null) {
-                        fileList.addAll(getPlayList(file.getAbsolutePath()));
-                    } else {
-                        break;
-                    }
-                } else if (file.getName().endsWith(".mp3")) {
-                    HashMap<String, String> song = new HashMap<>();
-                    song.put("file_path", file.getAbsolutePath());
-                    song.put("file_name", file.getName());
-                    fileList.add(song);
-                }
-            }
-            return fileList;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
         switch (requestCode) {
-            case REQUEST_STORAGE: {
-                // If request is cancelled, the result arrays are empty.
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    //Permission was granted. Now you can call your method to open camera, fetch contact or whatever
-//                    showAllList();
-                } else {
-                    // Permission was denied.......
-                    // You can again ask for permission from here
-                    Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show();
+
+            case PERMISSION_REQUEST_CODE: {
+                int deniedPermission = 0;
+                HashMap<String, Integer> permissionResult = new HashMap<>();
+                for (int i = 0; i < grantResults.length; i++) {
+
+                    if (grantResults[i] == PackageManager.PERMISSION_DENIED) {
+
+                        permissionResult.put(permissions[i], grantResults[i]);
+                        deniedPermission++;
+                    }
+
                 }
+
+                if (deniedPermission == 0) {
+                    initApp();
+                } else {
+
+                    for (Map.Entry<String, Integer> entry : permissionResult.entrySet()) {
+
+                        String permName = entry.getKey();
+                        Integer permResult = entry.getValue();
+
+                        if (ActivityCompat.shouldShowRequestPermissionRationale(this, permName)) {
+
+                            new MaterialAlertDialogBuilder(this).setTitle("Permission required " + permName).
+                                    setIcon(R.drawable.ic_error_red_14)
+                                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialogInterface, int i) {
+
+                                            checkAndRequest();
+                                        }
+                                    }).show();
+
+                        } else {
+
+
+                            new MaterialAlertDialogBuilder(this).setTitle("Now grant permissions from the settings  you have to do that from the settings").
+                                    setIcon(R.drawable.ic_error_red_14)
+                                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialogInterface, int i) {
+                                            dialogInterface.dismiss();
+                                            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+
+                                                    Uri.fromParts("package", getPackageName(), null));
+                                            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                            startActivity(intent);
+                                            finish();
+
+                                        }
+                                    }).show();
+
+
+                        }
+
+                    }
+
+                }
+
+
                 break;
             }
 
