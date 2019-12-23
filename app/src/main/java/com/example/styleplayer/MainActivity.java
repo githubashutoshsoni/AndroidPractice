@@ -29,6 +29,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import butterknife.OnClick;
+
 import static com.example.styleplayer.Constants.REQUEST_AUDIO;
 import static com.example.styleplayer.Constants.REQUEST_STORAGE;
 
@@ -77,7 +79,29 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
+    @OnClick(R.id.retry)
     void initApp() {
+
+        String path = null;
+
+        File sdCardRoot = Environment.getRootDirectory();
+
+        File dir = new File(sdCardRoot.getAbsolutePath());
+
+        if (dir.exists()) {
+
+            if (dir.listFiles() != null) {
+                for (File f : dir.listFiles()) {
+                    if (f.isFile())
+                        path = f.getName();
+
+                    if (path.contains(".mp3")) {
+                        Log.d(TAG, "path is" + path);
+
+                    }
+                }
+            }
+        }
 
     }
 
