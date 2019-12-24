@@ -1,62 +1,80 @@
 package com.example.styleplayer;
 
+import android.Manifest;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.Environment;
+import android.provider.DocumentsContract;
+import android.provider.Settings;
+
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import android.Manifest;
-import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.database.Cursor;
-import android.net.Uri;
-import android.os.Bundle;
-import android.os.Environment;
-import android.provider.MediaStore;
-import android.provider.Settings;
-import android.util.Log;
-import android.widget.Toast;
-
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.io.File;
-import java.security.Permission;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import butterknife.ButterKnife;
 import butterknife.OnClick;
-
-import static com.example.styleplayer.Constants.REQUEST_AUDIO;
-import static com.example.styleplayer.Constants.REQUEST_STORAGE;
+import timber.log.Timber;
 
 public class MainActivity extends AppCompatActivity {
-    private PermissionManager permissionManager;
+
+
+    public static final int PERMISSION_REQUEST_CODE = 201;
+    public static final int CREATE_FILE = 101;
+    public static final int OPEN_FILE = 102;
+
+    String[] appPerm = new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO};
+    MediaPlayer mediaPlayer;
+    String TAG = MainActivity.class.getSimpleName();
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        permissionManager = new PermissionManager(this);
 
+        ButterKnife.bind(this);
+
+        mediaPlayer = new MediaPlayer();
+        mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
         if (checkAndRequest()) {
 
-            initApp();
+//            initApp();
 
         }
 
 
     }
 
+    @OnClick(R.id.btn_retry)
+    public void initApp() {
 
-    String[] appPerm = new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO};
+        Timber.d("I'm here");
 
-    public static final int PERMISSION_REQUEST_CODE = 201;
+        String sdCard = Environment.getExternalStorageDirectory().getAbsolutePath();
 
+        Uri uri = Uri.parse(sdCard);
+
+//        createFile(uri);
+        openFile(uri);
+
+    }
 
     boolean checkAndRequest() {
 
@@ -79,34 +97,89 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
-    @OnClick(R.id.retry)
-    void initApp() {
+    private void openFile(Uri pickerInitialUri) {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("audio/mpeg");
 
-        String path = null;
+        // Optionally, specify a URI for the file that should appear in the
+        // system file picker when it loads.
+        intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, pickerInitialUri);
 
-        File sdCardRoot = Environment.getRootDirectory();
-
-        File dir = new File(sdCardRoot.getAbsolutePath());
-
-        if (dir.exists()) {
-
-            if (dir.listFiles() != null) {
-                for (File f : dir.listFiles()) {
-                    if (f.isFile())
-                        path = f.getName();
-
-                    if (path.contains(".mp3")) {
-                        Log.d(TAG, "path is" + path);
-
-                    }
-                }
-            }
-        }
-
+        startActivityForResult(intent, OPEN_FILE);
     }
 
-    String TAG = MainActivity.class.getSimpleName();
+    private void createFile(Uri pickerInitialUri) {
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/pdf");
+        intent.putExtra(Intent.EXTRA_TITLE, "invoice.pdf");
 
+        // Optionally, specify a URI for the directory that should be opened in
+        // the system file picker when your app creates the document.
+        intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, pickerInitialUri);
+
+        startActivityForResult(intent, CREATE_FILE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+
+        if (resultCode == RESULT_OK) {
+
+            switch (requestCode) {
+                case OPEN_FILE:
+                    Timber.d("Open file successfully  :)");
+                    if ((data != null) && (data.getData() != null)) {
+
+                        Timber.d("intent data is%s", data.getData().toString());
+
+                        Uri uri = data.getData();
+                        if (uri != null)
+                            startPlayingAudio(uri);
+
+                        Timber.d("mp3 is not corrupt");
+
+
+                    }
+                    break;
+                case CREATE_FILE:
+                    Timber.d("Create file successfully");
+                    break;
+
+            }
+
+
+        }
+
+
+        if (requestCode == CREATE_FILE) {
+
+        }
+
+        super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    void startPlayingAudio(Uri uri) {
+
+        try {
+            mediaPlayer.setDataSource(new FileInputStream(new File(uri.getPath())).getFD());
+
+            mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                @Override
+                public void onPrepared(MediaPlayer mediaPlayer) {
+
+                    mediaPlayer.start();
+                }
+            });
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+//        mediaPlayer.prepareAsync();
+
+    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
@@ -128,7 +201,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 if (deniedPermission == 0) {
-                    initApp();
+//                    initApp();
                 } else {
 
                     for (Map.Entry<String, Integer> entry : permissionResult.entrySet()) {

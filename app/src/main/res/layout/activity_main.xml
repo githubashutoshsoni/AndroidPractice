@@ -8,12 +8,19 @@
     tools:context=".MainActivity">
 
     <Button
-        android:id="@+id/retry"
+        android:id="@+id/btn_retry"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="retry"
 
         />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Stop music">
+
+    </Button>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/song_list"
