@@ -1,15 +1,17 @@
 package com.example.styleplayer;
 
 import android.Manifest;
+import android.content.ContentUris;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.media.AudioManager;
+import android.database.Cursor;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.DocumentsContract;
+import android.provider.MediaStore;
 import android.provider.Settings;
 
 import androidx.annotation.NonNull;
@@ -18,15 +20,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.example.styleplayer.services.MusicService;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import butterknife.ButterKnife;
 import butterknife.OnClick;
@@ -41,8 +42,23 @@ public class MainActivity extends AppCompatActivity {
 
     String[] appPerm = new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO};
     MediaPlayer mediaPlayer;
-    String TAG = MainActivity.class.getSimpleName();
 
+
+    @OnClick(R.id.stop_music)
+    void stopMusic() {
+        mediaPlayer.stop();
+    }
+
+    @OnClick(R.id.resume)
+    void resumeMusic() {
+
+        mediaPlayer.start();
+    }
+
+    @OnClick(R.id.pause)
+    void pauseMusic() {
+        mediaPlayer.pause();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,20 +68,79 @@ public class MainActivity extends AppCompatActivity {
         ButterKnife.bind(this);
 
         mediaPlayer = new MediaPlayer();
-        mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
         if (checkAndRequest()) {
 
-//            initApp();
+
+            Intent intent = new Intent(MainActivity.this, MusicService.class);
+            startService(intent);
+
 
         }
 
 
     }
 
+
+    ArrayList<Song> videoList = new ArrayList<Song>();
+
+    ArrayList<Song> soothingly() {
+
+
+        String[] projection = new String[]{
+                MediaStore.Video.Media._ID,
+                MediaStore.Video.Media.DISPLAY_NAME,
+                MediaStore.Video.Media.DURATION,
+                MediaStore.Video.Media.SIZE
+        };
+        String selection = MediaStore.Video.Media.DURATION +
+                " >= ?";
+        String[] selectionArgs = new String[]{
+
+                String.valueOf(TimeUnit.MILLISECONDS.convert(5, TimeUnit.MINUTES))
+        };
+        String sortOrder = MediaStore.Video.Media.DISPLAY_NAME + " ASC";
+
+        try (Cursor cursor = getApplicationContext().getContentResolver().query(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder
+        )) {
+            // Cache column indices.
+            int idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID);
+            int nameColumn =
+                    cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME);
+            int durationColumn =
+                    cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION);
+            int sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE);
+
+            Timber.d("%d is idcolumn and name column %d", idColumn, nameColumn);
+
+            while (cursor.moveToNext()) {
+                // Get values of columns for a given video.
+                long id = cursor.getLong(idColumn);
+                String name = cursor.getString(nameColumn);
+                int duration = cursor.getInt(durationColumn);
+                int size = cursor.getInt(sizeColumn);
+                Timber.d("%d is idcolumn and name column %s", id, name);
+                Uri contentUri = ContentUris.withAppendedId(
+                        MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id);
+
+                // Stores column values and the contentUri in a local object
+                // that represents the media file.
+                videoList.add(new Song(contentUri, name, duration, size));
+            }
+        }
+
+
+        return videoList;
+    }
+
     @OnClick(R.id.btn_retry)
     public void initApp() {
 
-        Timber.d("I'm here");
+        Timber.d("init app started");
 
         String sdCard = Environment.getExternalStorageDirectory().getAbsolutePath();
 
@@ -107,6 +182,7 @@ public class MainActivity extends AppCompatActivity {
         intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, pickerInitialUri);
 
         startActivityForResult(intent, OPEN_FILE);
+
     }
 
     private void createFile(Uri pickerInitialUri) {
@@ -136,7 +212,8 @@ public class MainActivity extends AppCompatActivity {
 
                         Uri uri = data.getData();
                         if (uri != null)
-                            startPlayingAudio(uri);
+//                            startPlayingAudio();
+
 
                         Timber.d("mp3 is not corrupt");
 
@@ -160,26 +237,6 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    void startPlayingAudio(Uri uri) {
-
-        try {
-            mediaPlayer.setDataSource(new FileInputStream(new File(uri.getPath())).getFD());
-
-            mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-                @Override
-                public void onPrepared(MediaPlayer mediaPlayer) {
-
-                    mediaPlayer.start();
-                }
-            });
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-//        mediaPlayer.prepareAsync();
-
-    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
