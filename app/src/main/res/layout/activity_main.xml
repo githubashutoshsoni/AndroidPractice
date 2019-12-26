@@ -6,38 +6,58 @@
     android:orientation="vertical"
     tools:context=".MainActivity">
 
-    <Button
-        android:id="@+id/btn_retry"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="retry"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:orientation="horizontal"
+        android:layout_height="wrap_content">
 
-        />
+        <Button
+            android:id="@+id/btn_retry"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="retry"
 
-    <Button
-        android:id="@+id/stop_music"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Stop music">
+            />
 
-    </Button>
+        <Button
+            android:id="@+id/stop_music"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Stop music">
+
+        </Button>
 
 
-    <Button
-        android:id="@+id/pause"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="pause">
+        <Button
+            android:id="@+id/pause"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="pause">
 
-    </Button>
+        </Button>
 
-    <Button
-        android:id="@+id/resume"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="resume">
+        <Button
+            android:id="@+id/resume"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="resume">
 
-    </Button>
+        </Button>
+        <Button
+            android:id="@+id/play"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Play">
+
+        </Button>
+
+    </LinearLayout>
+
 
     <ListView
         android:id="@+id/song_list"

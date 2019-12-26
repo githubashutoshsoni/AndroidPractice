@@ -41,21 +41,39 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     }
 
 
+    public void pause() {
+
+
+        if (player.isPlaying())
+            player.pause();
+
+
+    }
+
+    public void play() {
+
+        if (!player.isPlaying()) {
+
+            player.start();
+        }
+
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
         player = new MediaPlayer();
 
 
-        AssetFileDescriptor descriptor = null;
-        try {
-            descriptor = this.getAssets().openFd("daughtry_alive.mp3");
-            player.setDataSource(descriptor.getFileDescriptor(), descriptor.getStartOffset(), descriptor.getLength());
-            descriptor.close();
-            player.prepare();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+//        AssetFileDescriptor descriptor = null;
+//        try {
+//            descriptor = this.getAssets().openFd("daughtry_alive.mp3");
+//            player.setDataSource(descriptor.getFileDescriptor(), descriptor.getStartOffset(), descriptor.getLength());
+//            descriptor.close();
+//            player.prepare();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
 
         initMusicPlayer();
 
@@ -109,6 +127,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     }
 
     final IBinder musicBind = new MusicBinder();
+
     @Override
     public boolean onUnbind(Intent intent) {
         player.stop();
@@ -119,7 +138,6 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-
 
 
         return musicBind;
@@ -140,7 +158,7 @@ public class MusicService extends Service implements MediaPlayer.OnPreparedListe
         player.start();
     }
 
-    public void setSong(int songIndex){
-        songPosn=songIndex;
+    public void setSong(int songIndex) {
+        songPosn = songIndex;
     }
 }

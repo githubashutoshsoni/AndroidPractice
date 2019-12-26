@@ -9,7 +9,6 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
-import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -49,29 +48,46 @@ public class MainActivity extends AppCompatActivity {
     public static final int OPEN_FILE = 102;
 
     String[] appPerm = new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO};
-    MediaPlayer mediaPlayer;
+
     ArrayList<Song> songList;
 
     @OnClick(R.id.stop_music)
     void stopMusic() {
-        mediaPlayer.stop();
+
+
+        if (musicBound) {
+
+
+
+        }
     }
 
     @OnClick(R.id.resume)
     void resumeMusic() {
 
-        mediaPlayer.start();
+        if (musicBound) {
+
+            musicService.play();
+
+
+        }
     }
 
     @OnClick(R.id.pause)
     void pauseMusic() {
-        mediaPlayer.pause();
+
+
+        if (musicBound) {
+
+            musicService.pause();
+
+        }
     }
 
     @BindView(R.id.song_list)
     ListView songView;
 
-    private MusicService musicSrv;
+    private MusicService musicService;
     private Intent playIntent;
     private boolean musicBound = false;
 
@@ -82,10 +98,11 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         ButterKnife.bind(this);
-
+        Timber.d("I'm i at pos");
+        Timber.d("I'm long at pos");
         songList = new ArrayList<>();
 
-        mediaPlayer = new MediaPlayer();
+
         if (checkAndRequest()) {
 
 
@@ -103,8 +120,8 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                 Timber.d("I'm i at pos %s", i);
                 Timber.d("I'm long at pos %s", l);
-                musicSrv.setSong(Integer.parseInt(view.getTag().toString()));
-                musicSrv.playSong();
+                musicService.setSong(Integer.parseInt(view.getTag().toString()));
+                musicService.playSong();
             }
         });
 
@@ -114,8 +131,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void songPicked(View view) {
+        Timber.d("songPicked");
 
-
+        musicService.setSong(Integer.parseInt(view.getTag().toString()));
+        musicService.playSong();
     }
 
     @Override
@@ -134,9 +153,9 @@ public class MainActivity extends AppCompatActivity {
         public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
 
             MusicBinder binder = (MusicBinder) iBinder;
-            musicSrv = binder.getService();
+            musicService = binder.getService();
             musicBound = true;
-            musicSrv.setList(songList);
+            musicService.setList(songList);
 
         }
 
