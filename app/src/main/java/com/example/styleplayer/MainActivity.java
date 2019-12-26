@@ -1,18 +1,24 @@
 package com.example.styleplayer;
 
 import android.Manifest;
-import android.content.ContentUris;
+import android.content.ComponentName;
+import android.content.ContentResolver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.IBinder;
 import android.provider.DocumentsContract;
-import android.provider.MediaStore;
 import android.provider.Settings;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ListView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -20,15 +26,17 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.example.styleplayer.Adapters.SongsAdapter;
 import com.example.styleplayer.services.MusicService;
+import com.example.styleplayer.services.MusicService.MusicBinder;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
+import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 import timber.log.Timber;
@@ -42,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
 
     String[] appPerm = new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.RECORD_AUDIO};
     MediaPlayer mediaPlayer;
-
+    ArrayList<Song> songList;
 
     @OnClick(R.id.stop_music)
     void stopMusic() {
@@ -60,6 +68,14 @@ public class MainActivity extends AppCompatActivity {
         mediaPlayer.pause();
     }
 
+    @BindView(R.id.song_list)
+    ListView songView;
+
+    private MusicService musicSrv;
+    private Intent playIntent;
+    private boolean musicBound = false;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -67,75 +83,97 @@ public class MainActivity extends AppCompatActivity {
 
         ButterKnife.bind(this);
 
+        songList = new ArrayList<>();
+
         mediaPlayer = new MediaPlayer();
         if (checkAndRequest()) {
 
 
-            Intent intent = new Intent(MainActivity.this, MusicService.class);
-            startService(intent);
+//            Intent intent = new Intent(MainActivity.this, MusicService.class);
+//            startService(intent);
 
 
         }
 
+        SongsAdapter songAdt = new SongsAdapter(this, songList);
+        songView.setAdapter(songAdt);
 
-    }
-
-
-    ArrayList<Song> videoList = new ArrayList<Song>();
-
-    ArrayList<Song> soothingly() {
-
-
-        String[] projection = new String[]{
-                MediaStore.Video.Media._ID,
-                MediaStore.Video.Media.DISPLAY_NAME,
-                MediaStore.Video.Media.DURATION,
-                MediaStore.Video.Media.SIZE
-        };
-        String selection = MediaStore.Video.Media.DURATION +
-                " >= ?";
-        String[] selectionArgs = new String[]{
-
-                String.valueOf(TimeUnit.MILLISECONDS.convert(5, TimeUnit.MINUTES))
-        };
-        String sortOrder = MediaStore.Video.Media.DISPLAY_NAME + " ASC";
-
-        try (Cursor cursor = getApplicationContext().getContentResolver().query(
-                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                selection,
-                selectionArgs,
-                sortOrder
-        )) {
-            // Cache column indices.
-            int idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID);
-            int nameColumn =
-                    cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME);
-            int durationColumn =
-                    cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION);
-            int sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE);
-
-            Timber.d("%d is idcolumn and name column %d", idColumn, nameColumn);
-
-            while (cursor.moveToNext()) {
-                // Get values of columns for a given video.
-                long id = cursor.getLong(idColumn);
-                String name = cursor.getString(nameColumn);
-                int duration = cursor.getInt(durationColumn);
-                int size = cursor.getInt(sizeColumn);
-                Timber.d("%d is idcolumn and name column %s", id, name);
-                Uri contentUri = ContentUris.withAppendedId(
-                        MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id);
-
-                // Stores column values and the contentUri in a local object
-                // that represents the media file.
-                videoList.add(new Song(contentUri, name, duration, size));
+        songView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                Timber.d("I'm i at pos %s", i);
+                Timber.d("I'm long at pos %s", l);
+                musicSrv.setSong(Integer.parseInt(view.getTag().toString()));
+                musicSrv.playSong();
             }
+        });
+
+        getSongList();
+
+
+    }
+
+    public void songPicked(View view) {
+
+
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (playIntent == null) {
+            playIntent = new Intent(this, MusicService.class);
+            bindService(playIntent, musicConnection, Context.BIND_AUTO_CREATE);
+            startService(playIntent);
+        }
+    }
+
+
+    ServiceConnection musicConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+
+            MusicBinder binder = (MusicBinder) iBinder;
+            musicSrv = binder.getService();
+            musicBound = true;
+            musicSrv.setList(songList);
+
         }
 
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            musicBound = false;
+        }
+    };
 
-        return videoList;
+    public void getSongList() {
+        //retrieve song info
+        ContentResolver musicResolver = getContentResolver();
+        Uri musicUri = android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+        Cursor musicCursor = musicResolver.query(musicUri, null, null, null, null);
+
+
+        if (musicCursor != null && musicCursor.moveToFirst()) {
+            //get columns
+            int titleColumn = musicCursor.getColumnIndex
+                    (android.provider.MediaStore.Audio.Media.TITLE);
+            int idColumn = musicCursor.getColumnIndex
+                    (android.provider.MediaStore.Audio.Media._ID);
+            int artistColumn = musicCursor.getColumnIndex
+                    (android.provider.MediaStore.Audio.Media.ARTIST);
+            //add songs to list
+
+            do {
+                long thisId = musicCursor.getLong(idColumn);
+                String thisTitle = musicCursor.getString(titleColumn);
+                String thisArtist = musicCursor.getString(artistColumn);
+                songList.add(new Song(thisId, thisTitle, thisArtist));
+            }
+            while (musicCursor.moveToNext());
+        }
+
     }
+
 
     @OnClick(R.id.btn_retry)
     public void initApp() {
@@ -215,7 +253,7 @@ public class MainActivity extends AppCompatActivity {
 //                            startPlayingAudio();
 
 
-                        Timber.d("mp3 is not corrupt");
+                            Timber.d("mp3 is not corrupt");
 
 
                     }
