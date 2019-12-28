@@ -1,15 +1,21 @@
 package com.example.styleplayer;
 
 import android.Manifest;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
@@ -23,9 +29,12 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.example.styleplayer.Adapters.SongsAdapter;
+import com.example.styleplayer.BroadCasts.MusicBroadCast;
 import com.example.styleplayer.services.MusicService;
 import com.example.styleplayer.services.MusicService.MusicBinder;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -39,6 +48,9 @@ import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 import timber.log.Timber;
+
+import static android.app.Notification.EXTRA_NOTIFICATION_ID;
+import static com.example.styleplayer.Constants.ACTION_PAUSE;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -57,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (musicBound) {
 
-
+            //todo do something interesting here
 
         }
     }
@@ -127,6 +139,78 @@ public class MainActivity extends AppCompatActivity {
 
         getSongList();
 
+//        for (int i = 0; i < 400; i++)
+        showNotification("Hello", "I'm a description I can be really long ", 1);
+
+        practice(null);
+    }
+
+    void showNotification(String title, String desc, int i) {
+        NotificationManager manager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
+
+        String channelid = "channel_id";
+        String channelName = "channel_name";
+
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(channelid, channelName, NotificationManager.IMPORTANCE_DEFAULT);
+            manager.createNotificationChannel(channel);
+
+        }
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), channelid)
+                .setContentTitle(title)
+                .setContentText(desc)
+                .setSmallIcon(R.drawable.ic_launcher_background);
+
+        manager.notify(i, builder.build());
+
+
+    }
+
+
+    @OnClick(R.id.stop_music)
+    public void practice(View view) {
+
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        String channelId = "CURRENT_MUSIC";
+        String channelName = "CURRENT_CHANNEL_NAME";
+
+        Timber.d("I'm inside practice");
+
+
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH);
+            manager.createNotificationChannel(channel);
+
+        }
+
+//        set a pending intent when clicked will launch this activity...
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent mainActivityPendingIntent = PendingIntent.getActivity(this, 0, intent, 0);
+
+//        set a pending intent to stop a music if its playing broadcast
+        Intent stopMusicIntent= new Intent(this, MusicBroadCast.class);
+        stopMusicIntent.setAction(ACTION_PAUSE);
+        stopMusicIntent.putExtra(Constants.EXTRA_NOTIFICATION_ID,0);
+
+
+
+        PendingIntent stopMusicPendingIntent= PendingIntent.getBroadcast(this,1,stopMusicIntent,0);
+
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
+                .setSmallIcon(R.drawable.ic_error_red_14)
+                .setContentTitle("Sad")
+                .setColor(getResources().getColor(R.color.colorPrimaryDark, null))
+                .setContentText("This is a long sad story")
+                .setContentIntent(mainActivityPendingIntent)
+                .setAutoCancel(true)
+                .addAction(R.drawable.ic_stop_blue,"STOP",stopMusicPendingIntent)
+                .setContentInfo("Content info: this is it");
+
+
+        manager.notify(1, builder.build());
 
     }
 

@@ -30,14 +30,21 @@ dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'androidx.appcompat:appcompat:1.1.0'
 
+    //for logging
     implementation 'com.jakewharton.timber:timber:4.7.1'
+    //for scheduling tasks
+    implementation "android.arch.work:work-runtime:1.0.1"
 
     implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
+
+    //recyclerview
     implementation 'androidx.recyclerview:recyclerview:1.1.0'
-    implementation 'com.google.android.material:material:1.2.0-alpha02'
+//    material lib
+    implementation 'com.google.android.material:material:1.2.0-alpha03'
+    //butterknife
     implementation 'com.github.stephanenicolas:butterknife:10.0.0.6'
     annotationProcessor 'com.jakewharton:butterknife-compiler:10.1.0'
 
